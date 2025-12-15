@@ -1,10 +1,1 @@
-docx
-dotenv
-gspread
-oauth2client
-pdfplumber
-python-docx
 python-telegram-bot==20.7
-httpx
-aiofiles
-pillow
