@@ -1,10 +1,13 @@
 import os
+import sys
+import asyncio
+import logging
 from datetime import datetime
-import requests
 import httpx
 from converter import get_result_file
 from dotenv import load_dotenv
 from telegram import Update
+from telegram.error import TimedOut
 from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
 
 load_dotenv()
@@ -15,12 +18,18 @@ N8N_WEBHOOK_URL = os.getenv("N8N_WEBHOOK_URL")
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     doc = update.message.document
     tg_file = await doc.get_file()
-
-    path = doc.file_name
-    await tg_file.download_to_drive(path)
+    try:
+        path = doc.file_name
+        await tg_file.download_to_drive(path)
+    except TimedOut:
+        await update.message.reply_text("Не удалось скачать файл попробуйте позже")
+        return
 
     await update.message.reply_text("Файл получен")
-    result = get_result_file(path)
+    try:
+        result = get_result_file(path)
+    except Exception:
+        raise Exception("Не удалось конвертировать файл")
     async with httpx.AsyncClient(timeout=30) as client:
         with open(result, "rb") as f:
             await client.post(
@@ -35,8 +44,16 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 }
             )
 
-app = ApplicationBuilder().token(BOT_TOKEN).build()
-app.add_handler(MessageHandler(filters.Document.ALL, handle_document))
-app.run_polling()
+async def error_handler(update, context):
+    print("Ошибка:", context.error)
 
-#{{ $('Workflow Configuration').item.binary['file'] }}
+
+def main():
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    app.add_handler(MessageHandler(filters.Document.ALL, handle_document))
+    app.add_error_handler(error_handler)
+    app.run_polling()
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+    main()

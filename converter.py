@@ -56,6 +56,9 @@ def convert_to_txt(input_file: str, output_dir: str = "output_txt") -> str:
     return str(output_file)
 
 def get_result_file(file: str) -> str:
-    input_file = file
-    result = convert_to_txt(input_file)
-    return result
+    try:
+        input_file = file
+        result = convert_to_txt(input_file)
+        return result
+    except Exception as e:
+        raise e("Не удалось преобразовать файл в txt формат")
